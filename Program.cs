@@ -1,17 +1,19 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Security.Policy;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using TIBCO.Rendezvous;
 
-namespace TIBCOSend
+namespace TIBCORVTEST
 {
-    /// <summary>
-    ///  测试TIBCO Rendezvous 发送消息de 
-    /// </summary>
-    internal class Program
+    public class HostListener
     {
         public void Run()
         {
@@ -19,26 +21,27 @@ namespace TIBCOSend
             var subject = "ME.TEST";
             var network = "192.168.43.1";
             var port = "7500";
-            var transport = new NetTransport(port, network, port);
-            Console.WriteLine("Server running..");
-            Console.WriteLine("Press x to exit or any other key to send message");
-            int i = 0;
-            while (true)
-            {
-                var m = new Message();
-                m.SendSubject = subject;
-                m.AddField("Test", "TestValue" + i++);
-                transport.Send(m);
-                var line = Console.ReadLine();
-                if (line.ToUpper().Equals("X")) break;
-            }
+            Transport transport = new NetTransport(port, network, port);
+            Listener listener = new Listener(
+                    Queue.Default,
+                    transport,
+                    subject,
+                    new object()
+                    );
+            listener.MessageReceived += new MessageReceivedEventHandler(listener_MessageReceived);
+            var dispacher = new Dispatcher(listener.Queue);
+            dispacher.Join();
+            Console.WriteLine("Client running..");
+            Console.ReadKey();
             TIBCO.Rendezvous.Environment.Close();
+        }
+        void listener_MessageReceived(object listener, MessageReceivedEventArgs messageReceivedEventArgs)
+        {
+            Console.WriteLine(messageReceivedEventArgs.Message.GetField("Test").Value);
         }
         static void Main(string[] args)
         {
-            new Program().Run();
+            new HostListener().Run();
         }
-
-
     }
 }
